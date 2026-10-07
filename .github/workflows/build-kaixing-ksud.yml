@@ -1,23 +1,15 @@
 # ============================================================
-# 开星内核 · 定制 ksud 构建
+# 开星内核 · 定制 ksud 构建（单文件版 · 脚本内嵌）
 #
-# 目标：完全照抄你正在用的 ksud，只改一处 ——
-#       把启动时打印的品牌图案换成「开星内核」的笑脸。
-#
-# 建议 fork 的仓库：ShirkNeko/SukiSU-Ultra
-#   因为那个图案是 SukiSU Ultra 自己加的（官方 KernelSU 大概率没有），
-#   fork 它才能保证：图案找得到 + 其余功能与你当前用的完全一致。
-#
-# 需要放进仓库的两个文件：
-#   .github/workflows/build-kaixing-ksud.yml   （本文件）
-#   scripts/patch_banner.py                    （改图案用的脚本）
+# 只需要上传这一个文件。图案处理脚本以 base64 内嵌在 env 里，
+# 不会因为粘贴时缩进丢失而报错。
 #
 # 用法：
-#   1. Fork ShirkNeko/SukiSU-Ultra
-#   2. 放进上面两个文件
+#   1. Fork https://github.com/SukiSU-Ultra/SukiSU-Ultra
+#   2. 把本文件放进 .github/workflows/build-kaixing-ksud.yml
 #   3. Actions -> Build 开星内核 ksud -> Run workflow
-#      第一次建议勾 scan_only，先确认能扫到图案
-#   4. 下载产物里的 libksud.so，放进 App 工程重新编译
+#      第一次勾 scan_only，先确认能扫到图案
+#   4. 下载产物 libksud.so，放进 App 工程重新编译
 # ============================================================
 name: Build 开星内核 ksud
 
@@ -30,9 +22,6 @@ on:
         default: 'kaixing'
         type: choice
         options:
-          # kaixing = 换成开星内核笑脸（推荐）
-          # remove  = 直接删掉，什么都不打印
-          # keep    = 保持原样，只编译不改
           - kaixing
           - remove
           - keep
@@ -42,7 +31,7 @@ on:
         default: false
         type: boolean
       scan_dir:
-        description: '扫描哪个目录（找不到图案时可以试试整个 userspace）'
+        description: '扫描哪个目录（找不到就填 userspace 扫全部）'
         required: false
         default: 'userspace/ksud/src'
         type: string
@@ -51,12 +40,10 @@ jobs:
   build:
     name: Build ksud (aarch64)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout 源码
         uses: actions/checkout@v4
         with:
-          # build.rs 要靠 git 信息算版本号，必须拉全
           fetch-depth: 0
 
       - name: 准备 Python
@@ -64,34 +51,116 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: 还原图案处理脚本
+        env:
+          B64: >-
+            IyAtKi0gY29kaW5nOiB1dGYtOCAtKi0KIiIiCuWcqCBrc3VkIOa6kOeggemHjOaJvuWHuuWT
+            geeJjOaoquW5he+8iEFTQ0lJIOWbvuahiCAvIOWTgeeJjOWQje+8ie+8jOW5tuaNouaIkOOA
+            jOW8gOaYn+WGheaguOOAjeOAggrnlKjms5XvvJoKICBweXRob24zIHBhdGNoX2Jhbm5lci5w
+            eSBzY2FuICAgICDmupDnoIHnm67lvZUgICAgIOWPquaJq+aPj++8jOS4jeaUueWKqAogIHB5
+            dGhvbjMgcGF0Y2hfYmFubmVyLnB5IGthaXhpbmcgIOa6kOeggeebruW9lSAgICAg5pu/5o2i
+            5oiQ5byA5pif5YaF5qC456yR6IS4CiAgcHl0aG9uMyBwYXRjaF9iYW5uZXIucHkgcmVtb3Zl
+            ICAg5rqQ56CB55uu5b2VICAgICDnm7TmjqXliKDmjonmqKrluYUK5pys5paH5Lu25omA5pyJ
+            IGlmIOivreWPpemDveWGmeaIkOWNleihjO+8jOmBv+WFjeWkjeWItueymOi0tOaXtue8qei/
+            m+S4ouWkseOAggoiIiIKaW1wb3J0IHJlLCBzeXMsIG9zCkFSVF9DSEFSUyA9IHNldCgnIyo9
+            Xy4vXFx8LSgpW117fTw+Xit+YDo7LFwnIicpCkJSQU5EX1dPUkRTID0gWydzdWtpc3UnLCAn
+            c3VraSBzdScsICdzdWtpLXN1JywgJ3VsdHJhJywgJ2tlcm5lbHN1J10KVyA9IDMxCmRlZiBt
+            YWtlX2thaXhpbmcoKToKICAgIGRlZiBiYXIoYyk6CiAgICAgICAgYiA9IGMuY2VudGVyKFcp
+            CiAgICAgICAgYXNzZXJ0IGxlbihiKSA9PSBXLCAndG9vIHdpZGU6ICVzJyAlIGMKICAgICAg
+            ICByZXR1cm4gJyAgfCcgKyBiICsgJ3wnCiAgICByb3dzID0gWycgIC4nICsgJy0nICogVyAr
+            ICcuJywKICAgICAgICAgICAgYmFyKCdvICAgICAgICAgICAgICAgbycpLAogICAgICAgICAg
+            ICBiYXIoJycpLAogICAgICAgICAgICBiYXIoJ1xcX19fX19fX19fLycpLAogICAgICAgICAg
+            ICBiYXIoJycpLAogICAgICAgICAgICBiYXIoJ0sgQSBJIFggSSBOIEcgICBLRVJORUwnKSwK
+            ICAgICAgICAgICAgYmFyKCcnKSwKICAgICAgICAgICAgJyAgXCcnICsgJy0nICogVyArICdc
+            JyddCiAgICBhc3NlcnQgbGVuKHNldChsZW4ocikgZm9yIHIgaW4gcm93cykpID09IDEsICd3
+            aWR0aCBtaXNtYXRjaCcKICAgIHJldHVybiByb3dzCktBSVhJTkcgPSBtYWtlX2thaXhpbmco
+            KQpkZWYgaXNfYXJ0X2xpbmUocyk6CiAgICB0ID0gcy5zdHJpcCgpCiAgICBpZiBsZW4odCkg
+            PCA4OiByZXR1cm4gRmFsc2UKICAgIGNoYXJzID0gW2MgZm9yIGMgaW4gdCBpZiBub3QgYy5p
+            c3NwYWNlKCldCiAgICBpZiBsZW4oY2hhcnMpIDwgNjogcmV0dXJuIEZhbHNlCiAgICByZXR1
+            cm4gc3VtKDEgZm9yIGMgaW4gY2hhcnMgaWYgYyBpbiBBUlRfQ0hBUlMpIC8gZmxvYXQobGVu
+            KGNoYXJzKSkgPj0gMC42CmRlZiBpc19icmFuZF9saW5lKHMpOgogICAgIyBBU0NJSSDmqKrl
+            uYXluLjmiorlrZfmr43mi4blvIDlhpnmiJAgIlMgVSBLIEkgUyBVIu+8jOaJgOS7peimgeWO
+            u+epuuagvOWGjeWMuemFjQogICAgbG93ID0gcy5sb3dlcigpCiAgICBubyA9IGxvdy5yZXBs
+            YWNlKCcgJywgJycpCiAgICByZXR1cm4gYW55KCh3IGluIGxvdykgb3IgKHcgaW4gbm8pIGZv
+            ciB3IGluIEJSQU5EX1dPUkRTKQpkZWYgZmluZF9rYWl4aW5nX2Jsb2NrKGxpbmVzKToKICAg
+            IGthID0gW3Iuc3RyaXAoKSBmb3IgciBpbiBLQUlYSU5HXQogICAgZm9yIGkgaW4gcmFuZ2Uo
+            bGVuKGxpbmVzKSk6CiAgICAgICAgaWYgKG5vdCBrYVswXSkgb3IgKGthWzBdIG5vdCBpbiBs
+            aW5lc1tpXSk6IGNvbnRpbnVlCiAgICAgICAgaiwgaWR4ID0gaSwgMAogICAgICAgIHdoaWxl
+            IGogPCBsZW4obGluZXMpIGFuZCBpZHggPCBsZW4oa2EpOgogICAgICAgICAgICBpZiBrYVtp
+            ZHhdIG5vdCBpbiBsaW5lc1tqXTogYnJlYWsKICAgICAgICAgICAgaWR4ICs9IDEKICAgICAg
+            ICAgICAgaiArPSAxCiAgICAgICAgaWYgaWR4ID49IDM6IHJldHVybiAoaSwgaikKICAgIHJl
+            dHVybiBOb25lCmRlZiBrZWVwKGxpbmVzLCBpKToKICAgIGlmIG5vdCAoMCA8PSBpIDwgbGVu
+            KGxpbmVzKSk6IHJldHVybiBGYWxzZQogICAgaWYgJ3ByaW50bG4hJyBub3QgaW4gbGluZXNb
+            aV06IHJldHVybiBGYWxzZQogICAgcmV0dXJuIGlzX2FydF9saW5lKGxpbmVzW2ldKSBvciBp
+            c19icmFuZF9saW5lKGxpbmVzW2ldKQpkZWYgZmluZF9icmFuZF9ibG9jayhsaW5lcyk6CiAg
+            ICBoaXRzID0gW2kgZm9yIGkgaW4gcmFuZ2UobGVuKGxpbmVzKSkgaWYgaXNfYnJhbmRfbGlu
+            ZShsaW5lc1tpXSldCiAgICBpZiBub3QgaGl0czogcmV0dXJuIE5vbmUKICAgIGMgPSBoaXRz
+            WzBdCiAgICBhID0gYwogICAgd2hpbGUga2VlcChsaW5lcywgYSAtIDEpOiBhIC09IDEKICAg
+            IGIgPSBjICsgMQogICAgd2hpbGUga2VlcChsaW5lcywgYik6IGIgKz0gMQogICAgaWYgYiAt
+            IGEgPCAyOiByZXR1cm4gTm9uZQogICAgcmV0dXJuIChhLCBiKQpkZWYgb3ZlcmxhcHMoYmxv
+            Y2tzLCBhLCBiKToKICAgIGZvciAoYTIsIGIyKSBpbiBibG9ja3M6CiAgICAgICAgaWYgbm90
+            IChiIDw9IGEyIG9yIGEgPj0gYjIpOiByZXR1cm4gVHJ1ZQogICAgcmV0dXJuIEZhbHNlCmRl
+            ZiBmaW5kX2Jsb2NrcyhsaW5lcyk6CiAgICBibG9ja3MgPSBbXQogICAga2IgPSBmaW5kX2th
+            aXhpbmdfYmxvY2sobGluZXMpCiAgICBpZiBrYjogYmxvY2tzLmFwcGVuZChrYikKICAgIGJi
+            ID0gZmluZF9icmFuZF9ibG9jayhsaW5lcykKICAgIGlmIGJiIGFuZCBub3Qgb3ZlcmxhcHMo
+            YmxvY2tzLCBiYlswXSwgYmJbMV0pOiBibG9ja3MuYXBwZW5kKGJiKQogICAgaSA9IDAKICAg
+            IHdoaWxlIGkgPCBsZW4obGluZXMpOgogICAgICAgIGlmIG5vdCBpc19hcnRfbGluZShsaW5l
+            c1tpXSk6CiAgICAgICAgICAgIGkgKz0gMQogICAgICAgICAgICBjb250aW51ZQogICAgICAg
+            IGogPSBpCiAgICAgICAgd2hpbGUgaiA8IGxlbihsaW5lcykgYW5kIGlzX2FydF9saW5lKGxp
+            bmVzW2pdKTogaiArPSAxCiAgICAgICAgayA9IGoKICAgICAgICB3aGlsZSBrIDwgbGVuKGxp
+            bmVzKSBhbmQgayAtIGogPCAyIGFuZCAncHJpbnRsbiEnIGluIGxpbmVzW2tdIGFuZCAoaXNf
+            YXJ0X2xpbmUobGluZXNba10pIG9yIGlzX2JyYW5kX2xpbmUobGluZXNba10pKTogayArPSAx
+            CiAgICAgICAgaWYgaiAtIGkgPj0gMyBhbmQgbm90IG92ZXJsYXBzKGJsb2NrcywgaSwgayk6
+            IGJsb2Nrcy5hcHBlbmQoKGksIGspKQogICAgICAgIGkgPSBrCiAgICByZXR1cm4gYmxvY2tz
+            CmRlZiBwcm9jZXNzKHBhdGgsIG1vZGUpOgogICAgbGluZXMgPSBvcGVuKHBhdGgsIGVuY29k
+            aW5nPSd1dGYtOCcsIGVycm9ycz0naWdub3JlJykucmVhZCgpLnNwbGl0KCdcbicpCiAgICBi
+            bG9ja3MgPSBmaW5kX2Jsb2NrcyhsaW5lcykKICAgIGlmIG5vdCBibG9ja3M6IHJldHVybiAw
+            LCBbXQogICAgaW5mbyA9IFtdCiAgICBuZXcgPSBbXQogICAgcHJldiA9IDAKICAgIGZvciAo
+            YSwgYikgaW4gc29ydGVkKGJsb2Nrcyk6CiAgICAgICAgbmV3LmV4dGVuZChsaW5lc1twcmV2
+            OmFdKQogICAgICAgIGluZm8uYXBwZW5kKChwYXRoLCBhICsgMSwgYiwgbGluZXNbYTpiXSkp
+            CiAgICAgICAgaWYgbW9kZSA9PSAna2FpeGluZyc6CiAgICAgICAgICAgIG0gPSByZS5tYXRj
+            aChyJ14oXHMqKScsIGxpbmVzW2FdKQogICAgICAgICAgICBpbmQgPSBtLmdyb3VwKDEpIGlm
+            IG0gZWxzZSAnJwogICAgICAgICAgICBmb3IgYXJ0IGluIEtBSVhJTkc6IG5ldy5hcHBlbmQo
+            JyVzcHJpbnRsbiEociMiJXMiIyk7JyAlIChpbmQsIGFydCkpCiAgICAgICAgcHJldiA9IGIK
+            ICAgIG5ldy5leHRlbmQobGluZXNbcHJldjpdKQogICAgaWYgbW9kZSBpbiAoJ2thaXhpbmcn
+            LCAncmVtb3ZlJyk6IG9wZW4ocGF0aCwgJ3cnLCBlbmNvZGluZz0ndXRmLTgnKS53cml0ZSgn
+            XG4nLmpvaW4obmV3KSkKICAgIHJldHVybiBsZW4oYmxvY2tzKSwgaW5mbwpkZWYgbWFpbigp
+            OgogICAgbW9kZSA9IHN5cy5hcmd2WzFdCiAgICByb290ID0gc3lzLmFyZ3ZbMl0KICAgIHRv
+            dGFsID0gMAogICAgZm9yIHIsIGQsIGZzIGluIG9zLndhbGsocm9vdCk6CiAgICAgICAgaWYg
+            J3RhcmdldCcgaW4gciBvciAnLmdpdCcgaW4gciBvciAnYnVpbGQnIGluIHIuc3BsaXQob3Mu
+            c2VwKTogY29udGludWUKICAgICAgICBmb3IgZiBpbiBmczoKICAgICAgICAgICAgaWYgbm90
+            IGYuZW5kc3dpdGgoJy5ycycpOiBjb250aW51ZQogICAgICAgICAgICBuLCBpbmZvID0gcHJv
+            Y2Vzcyhvcy5wYXRoLmpvaW4ociwgZiksIG1vZGUpCiAgICAgICAgICAgIGlmIG5vdCBuOiBj
+            b250aW51ZQogICAgICAgICAgICB0b3RhbCArPSBuCiAgICAgICAgICAgIGZvciBwYXRoLCBh
+            LCBiLCBjb250ZW50IGluIGluZm86CiAgICAgICAgICAgICAgICBwcmludCgnICBmb3VuZDog
+            JXMgIGxpbmVzICVkLSVkJyAlIChvcy5wYXRoLnJlbHBhdGgocGF0aCwgcm9vdCksIGEsIGIp
+            KQogICAgICAgICAgICAgICAgaWYgbW9kZSAhPSAnc2Nhbic6IGNvbnRpbnVlCiAgICAgICAg
+            ICAgICAgICBmb3IgbCBpbiBjb250ZW50WzoxNF06IHByaW50KCcgICAgfCAlcycgJSBsKQog
+            ICAgcHJpbnQoJ3RvdGFsOiAlZCcgJSB0b3RhbCkKbWFpbigpCg==
+        run: |
+          mkdir -p scripts
+          printf '%s' "$B64" | tr -d ' \n' | base64 -d > scripts/patch_banner.py
+          python3 -c "import ast;ast.parse(open('scripts/patch_banner.py',encoding='utf-8').read());print('script ok')"
+          wc -l scripts/patch_banner.py
+
       - name: 扫描图案在哪
         run: |
-          echo "=========================================="
-          echo " 扫描目录: ${{ inputs.scan_dir }}"
-          echo "=========================================="
+          echo "=== scan dir: ${{ inputs.scan_dir }} ==="
           python3 scripts/patch_banner.py scan "${{ inputs.scan_dir }}" || true
-          echo
-          echo "------------------------------------------"
-          echo "如果显示「共处理 0 处」，换 scan_dir 再跑一次："
-          echo "  userspace                 整个用户空间"
-          echo "  userspace/ksud            含 Cargo 配置"
-          echo "  manager/app/src/main/java 万一在管理器里"
-          echo "------------------------------------------"
+          echo "如果显示 total: 0，把 scan_dir 改成 userspace 再跑一次"
 
       - name: 替换图案
         if: ${{ !inputs.scan_only && inputs.banner_mode != 'keep' }}
         run: |
-          echo "[i] 执行替换：${{ inputs.banner_mode }}"
+          echo "[i] mode: ${{ inputs.banner_mode }}"
           python3 scripts/patch_banner.py "${{ inputs.banner_mode }}" "${{ inputs.scan_dir }}"
-          echo
-          echo "替换后的样子："
+          echo "--- after ---"
           python3 scripts/patch_banner.py scan "${{ inputs.scan_dir }}" || true
 
       - name: 只扫描就到此为止
         if: ${{ inputs.scan_only }}
-        run: echo "[i] 扫描模式，不编译"
+        run: echo "[i] scan only"
 
-      # ---------------- 以下开始编译 ----------------
       - name: 装 Rust
         if: ${{ !inputs.scan_only }}
         uses: dtolnay/rust-toolchain@stable
@@ -104,37 +173,25 @@ jobs:
         with:
           workspaces: userspace/ksud
 
-      - name: 装 cross（官方同款交叉编译工具）
+      - name: 装 cross
         if: ${{ !inputs.scan_only }}
-        run: |
-          RUSTFLAGS="" cargo install cross --git https://github.com/cross-rs/cross --rev 66845c1
+        run: RUSTFLAGS="" cargo install cross --git https://github.com/cross-rs/cross --rev 66845c1
 
       - name: 准备 LKM 目录
         if: ${{ !inputs.scan_only }}
-        run: |
-          # 官方构建会把 ko 嵌进 ksud；我们不需要内置 ko
-          # （修补时用 -m 指定自己的），但目录得存在否则可能报错
-          mkdir -p userspace/ksud/bin/aarch64
-          mkdir -p userspace/ksud/bin/x86_64
+        run: mkdir -p userspace/ksud/bin/aarch64 userspace/ksud/bin/x86_64
 
       - name: 编译 ksud
         if: ${{ !inputs.scan_only }}
         working-directory: userspace/ksud
-        run: |
-          echo "=== 图案模式 : ${{ inputs.banner_mode }} ==="
-          CROSS_NO_WARNINGS=0 cross build --target aarch64-linux-android --release
+        run: CROSS_NO_WARNINGS=0 cross build --target aarch64-linux-android --release
 
       - name: 收集产物
         if: ${{ !inputs.scan_only }}
         run: |
           mkdir -p out
           SRC=userspace/ksud/target/aarch64-linux-android/release/ksud
-          if [ -f "$SRC" ]; then
-            cp "$SRC" out/ksud
-          else
-            echo "[!] 常规路径没找到，全盘找一下"
-            cp "$(find . -type f -name ksud | head -1)" out/ksud
-          fi
+          if [ -f "$SRC" ]; then cp "$SRC" out/ksud; else cp "$(find . -type f -name ksud | head -1)" out/ksud; fi
           cp out/ksud out/libksud.so
           chmod 755 out/ksud out/libksud.so
           ls -la out/
